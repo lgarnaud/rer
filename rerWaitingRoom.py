@@ -9,7 +9,7 @@ import re
 import sys
 
 
-missions = {
+missions_data = {
 		"A":"Gare du Nord",
 		"C":"Cité universitaire (exceptionnel)",
 		"E":"Aéroport Charles-de-Gaulle 2 TGV",
@@ -28,7 +28,7 @@ missions = {
 		"U":"Laplace",
 		}
 
-directions = {
+directions_data = {
 		"A":"N",
 		"C":"N",
 		"E":"N",
@@ -47,7 +47,7 @@ directions = {
 		"U":"S",
 		}
 
-gares = [
+gares_data = [
 		"Aéroport Charles-de-Gaulle 2 TGV",
 		"Aéroport Charles-de-Gaulle 1"    ,
 		"Parc des Expositions"            ,
@@ -65,8 +65,25 @@ gares = [
 		"La Plaine - Stade de France"     ,
 		"Gare du Nord"                    ,
 		]
-
-requests = {
+garesOrder_data = {
+        	"Aéroport Charles-de-Gaulle 2 TGV": (2,4),
+		"Aéroport Charles-de-Gaulle 1"    : (2,3),
+		"Parc des Expositions"            : (2,2),
+		"Villepinte"                      : (2,1),
+		"Sevran - Beaudottes"             : (2,0),
+		"Mitry - Claye"                   : (1,3),
+		"Villeparisis - Mitry-le-Neuf"    : (1,2),
+		"Vert-Galant"                     : (1,1),
+		"Sevran - Livry"                  : (1,0),
+		"Aulnay-sous-Bois"                : (0,6),
+		"Le Blanc-Mesnil"                 : (0,5),
+		"Drancy"                          : (0,4),
+		"Le Bourget"                      : (0,3),
+		"La Courneuve - Aubervilliers"    : (0,2),
+		"La Plaine - Stade de France"     : (0,1),
+		"Gare du Nord"                    : (0,0),
+        }
+requests_data = {
 		"Aéroport Charles-de-Gaulle 2 TGV": "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=RYR&destination=PARIS+NORD&ligne=&nomGare=AEROPORT+CHARLES+DE+GAULLE+2+TGV+-+Roissy&x=28&y=10",
 		"Aéroport Charles-de-Gaulle 1"    : "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=RSY&destination=PARIS+NORD&ligne=&nomGare=AEROPORT+CHARLES+DE+GAULLE++1+-+Roissy&x=45&y=12",
 		"Parc des Expositions"            : "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=PEX&destination=PARIS+NORD&ligne=&nomGare=PARC+DES+EXPOSITIONS&x=18&y=16",
@@ -92,6 +109,20 @@ patternTrain = re.compile(b"numeroTrain=\w\w\w\w\d\d")
 patternHeureProbable = re.compile(b"heureProbable=\d\d:\d\d")
 patternHeureTheorique = re.compile(b"heureTheorique=\d\d:\d\d")
 
+
+# return 1 sur gare 1 avant gare 2, -1 si gare 2 avant gare 1, 0 si incomparable.
+def getGareOrder(gare1,gare2):
+        positionGare1 = garesOrder_data[gare1]
+        positionGare2 = garesOrder_data[gare2]
+        # meme sous branche
+        if positionGare1[0] == positionGare2[0]:
+                return 1 if positionGare1[1] >= positionGare2[1] else -1
+        else:
+                if positionGare1[0] != 0 and positionGare2[0] != 0:
+                        # Les branches sont incomparables
+                        return 0
+                else:
+                        return 1 if positionGare1[0] >= positionGare2[0] else -1
 
 
 def getTrainFrom(request):
@@ -127,15 +158,38 @@ def getTrainFrom(request):
 			theoricalHour = theoricalHourTrain[0].decode("utf-8")[-5:]
 
 		if len(name) and len(probableHour) and len (theoricalHour):
-			if directions[name[0]] == "S":
+			if name[0] in directions_data.keys() and directions_data[name[0]] == "S":
 				trainRoissyVersParisNord.append((name,probableHour,theoricalHour))
 	return trainRoissyVersParisNord
 	
+passageGare = {}
+for gare in gares_data:
+	passageGare[gare] = getTrainFrom(requests_data[gare])
 
-for gare in gares:
-	print(gare)
-	print(getTrainFrom(requests[gare]))
+for gare in gares_data:
+        print(gare)
+        print(passageGare[gare])
 
+missions = {}
+for gare in reversed(gares_data):
+        for mission in passageGare[gare]:
+                missions[mission[0]] = gare
+
+nextTrainsToStation = {}
+for mission in missions.keys():
+        if not missions[mission] in nextTrainsToStation:
+                nextTrainsToStation[missions[mission]] = []
+        nextTrainsToStation[missions[mission]].append(mission)
+
+for gare in gares_data:        
+        if gare in nextTrainsToStation:
+                print(nextTrainsToStation[gare])
+        print(gare)
+
+waitingQueue = {}
+pos = 0
+waitingQueue[passageGare[-1][0]] = 0
+print(waitingQueue)
 
 sys.exit(0)
 
