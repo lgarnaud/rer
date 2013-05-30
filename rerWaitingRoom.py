@@ -7,7 +7,8 @@
 import urllib.request
 import re
 import sys
-
+import os
+import datetime
 
 # Dictionnaire donnant la gare de destination du RER en fonction de la premiere lettre de son code mission.
 missions_data = {
@@ -74,15 +75,15 @@ gares_data = [
 # Le second nombre du code indique la position de la station dans la branche.
 # Ainsi, pour etre comparer, les stations doivent avoir le meme premier nombre, ou l'une des deux doit avoir un premier nombre nul.
 garesOrder_data = {
-      "Aéroport Charles-de-Gaulle 2 TGV": (2,4),
-		"Aéroport Charles-de-Gaulle 1"    : (2,3),
-		"Parc des Expositions"            : (2,2),
-		"Villepinte"                      : (2,1),
-		"Sevran - Beaudottes"             : (2,0),
-		"Mitry - Claye"                   : (1,3),
-		"Villeparisis - Mitry-le-Neuf"    : (1,2),
-		"Vert-Galant"                     : (1,1),
-		"Sevran - Livry"                  : (1,0),
+      "Aéroport Charles-de-Gaulle 2 TGV": (2,11),
+		"Aéroport Charles-de-Gaulle 1"    : (2,10),
+		"Parc des Expositions"            : (2,9),
+		"Villepinte"                      : (2,8),
+		"Sevran - Beaudottes"             : (2,7),
+		"Mitry - Claye"                   : (1,10),
+		"Villeparisis - Mitry-le-Neuf"    : (1,9),
+		"Vert-Galant"                     : (1,8),
+		"Sevran - Livry"                  : (1,7),
 		"Aulnay-sous-Bois"                : (0,6),
 		"Le Blanc-Mesnil"                 : (0,5),
 		"Drancy"                          : (0,4),
@@ -148,6 +149,8 @@ def getTrainFromRequest(request):
 		try:
 			page = urllib.request.urlopen(request)
 			success = True
+		except(KeyboardInterrupt, SystemExit):
+			sys.exit(0)
 		except:
 			continue
 		break
@@ -185,17 +188,6 @@ def getTrainFromStation(gare):
 	"""Renvoie la liste des missions avec leur horaires theorique et probable de la gare."""
 	return getTrainFromRequest(requests_data[gare])
 	
-passageGare = {}
-for gare in gares_data:
-	passageGare[gare] = getTrainFromStation(gare)
-
-for gare in gares_data:
-        print(gare)
-        print(passageGare[gare])
-
-
-print("------------------------------------------------")
-
 
 def getWaitingQueue(passageInGare):
 	"""
@@ -205,12 +197,12 @@ def getWaitingQueue(passageInGare):
 	"""
 	# Initialisation
 	waitingQueue = {}
-	waitingQueue[passageGare[gares_data[-1]][0][0]] = 0
+	waitingQueue[passageInGare[gares_data[-1]][0][0]] = 0
 	pos = 0
 	currentPosition = pos
 	# Recuperation de l'ordre de passage par methode naive. 
 	for gare in reversed(gares_data):
-		for mission in passageGare[gare]:
+		for mission in passageInGare[gare]:
 			if mission[0] in waitingQueue:
 				currentPosition = max(pos, waitingQueue[mission[0]])
 			else:
@@ -228,9 +220,9 @@ def getWaitingQueue(passageInGare):
 		nbIter = nbIter + 1
 		doContinue = False
 		for gare in reversed(gares_data):
-			for i in range(0,len(passageGare[gare])-1):
-					mission1Name = passageGare[gare][i][0]
-					mission2Name = passageGare[gare][i+1][0]
+			for i in range(0,len(passageInGare[gare])-1):
+					mission1Name = passageInGare[gare][i][0]
+					mission2Name = passageInGare[gare][i+1][0]
 					pos1 = waitingQueue[mission1Name]
 					pos2 = waitingQueue[mission2Name]
 					if pos1 > pos2:
@@ -244,30 +236,128 @@ def getWaitingQueue(passageInGare):
 			break
 	return waitingQueue
 
-waitingQueue = getWaitingQueue(passageGare)
 
-for number in sorted(waitingQueue.values()):
-	for mission in waitingQueue.items():
-		if mission[1] == number:
-			print("Mission %s position %d" % (mission[0],number))
-	
-print("------------------------------------------------")
+def getNewLine(gare):
+	return "| "
+	alignIdx = garesOrder_data[gare][0]
+	alignValue = 1 
+	if alignIdx == 1 : 
+		alignValue = 2
+	elif alignIdx == 2:
+		alignValue = 0
+	else:
+		alignValue = 1
+	return " " * 35 * alignValue + "| "
 
-missions = {}
-for gare in reversed(gares_data):
-        for mission in passageGare[gare]:
-                missions[mission[0]] = gare
 
-nextTrainsToStation = {}
-for mission in missions.keys():
-        if not missions[mission] in nextTrainsToStation:
-                nextTrainsToStation[missions[mission]] = []
-        nextTrainsToStation[missions[mission]].append(mission)
+snapshot=0
+passageGare = {}
+for gare in gares_data:
+	passageGare[gare] = getTrainFromStation(gare)
 
-for gare in gares_data:        
-        if gare in nextTrainsToStation:
-                print(nextTrainsToStation[gare])
-        print(gare)
+while True:
+	completeSnapshot = datetime.datetime.now()
+	for currentGare in reversed(gares_data):
+		passageGare[currentGare] = getTrainFromStation(currentGare)
+
+		snapshot += 1
+		beginSnapshot = datetime.datetime.now() 
+
+		#for gare in gares_data:
+		#		  print(gare)
+		#		  print(passageGare[gare])
+
+
+		#print("------------------------------------------------")
+
+
+		waitingQueue = getWaitingQueue(passageGare)
+		#for number in sorted(waitingQueue.values()):
+#		for mission in waitingQueue.items():
+#			if mission[1] == number:
+#				print("Mission %s position %d" % (mission[0],number))
+			
+#	print("------------------------------------------------")
+
+
+		missionByPosition = {v:k for k, v in waitingQueue.items()}
+		#print(missionByPosition)
+		missions = {}
+		for gare in reversed(gares_data):
+				  for mission in passageGare[gare]:
+							 missions[mission[0]] = gare
+
+		nextTrainsToStation = {}
+		for mission in missions.keys():
+				  if not missions[mission] in nextTrainsToStation:
+							 nextTrainsToStation[missions[mission]] = []
+				  nextTrainsToStation[missions[mission]].append(mission)
+
+		dataToPrint = {}
+		for gare in gares_data:        
+			dataToPrint[gare] = []
+			if gare in nextTrainsToStation:
+				for number in reversed(sorted(missionByPosition.keys())):
+					if missionByPosition[number] in nextTrainsToStation[gare]:
+						dataToPrint[gare].append(missionByPosition[number] + "  (" + str(number + 1) + ")")
+
+		#print(dataToPrint)
+
+		linesToPrint = []
+		linesToPrintLeft = []
+		linesToPrintRight = []
+		linesToPrintCenter = []
+		for gare in gares_data:
+			printer = linesToPrintCenter
+			if garesOrder_data[gare][0] == 1 :
+				printer = linesToPrintRight
+			elif garesOrder_data[gare][0] == 2:
+				printer = linesToPrintLeft
+			for dataChunkToPrint in dataToPrint[gare]:
+				thisLine = getNewLine(gare)
+				thisLine += dataChunkToPrint
+				printer.append(thisLine)
+			thisLine = getNewLine(gare)
+			if gare == currentGare:
+				thisLine += "* "
+			thisLine += gare
+			printer.append(thisLine)
+
+		nbLinesToComplete = len(linesToPrintRight) - len(linesToPrintLeft)
+		linesToPrintToComplete = linesToPrintLeft
+		if nbLinesToComplete < 0:
+			nbLinesToComplete = -nbLinesToComplete
+			linesToPrintToComplete = linesToPrintRight
+			
+		for i in range(0,nbLinesToComplete):
+			linesToPrintToComplete.insert(0,"")
+
+
+		for i in range(0, max(len(linesToPrintRight), len(linesToPrintLeft))):
+			s = ""
+			if i < len(linesToPrintLeft):
+				s += linesToPrintLeft[i]
+			else:
+				s += getNewLine(gare)
+			if i < len(linesToPrintRight):
+				s += " " * (60 - len(s)) + linesToPrintRight[i]
+			else:
+				s += " " * (60 - len(s)) + getNewLine(gare)
+			linesToPrint.append(s)
+
+		linesToPrint.append("\ " + " " * 58 + "/") 
+		linesToPrint.append("  " + "-" * 27 + " " * 3 + "-" * 28  + " ") 
+		linesToPrint.append("  " + " " * 27 + "\ /"  + " " * 28  + " ") 
+		for line in linesToPrintCenter:
+			linesToPrint.append(" " * 30 + line)
+
+		endSnapshot = datetime.datetime.now()
+		os.system("clear")
+		print("" + str(snapshot) + " " + str(completeSnapshot) + " " + str(beginSnapshot) + " " + str(endSnapshot) + " " + currentGare)
+		for line in linesToPrint:
+			print(line)
+		print(passageGare[gares_data[-1]])
+
 sys.exit(0)
 
 
