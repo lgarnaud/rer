@@ -9,6 +9,7 @@ import re
 import sys
 
 
+# Dictionnaire donnant la gare de destination du RER en fonction de la premiere lettre de son code mission.
 missions_data = {
 		"A":"Gare du Nord",
 		"C":"Cité universitaire (exceptionnel)",
@@ -28,6 +29,7 @@ missions_data = {
 		"U":"Laplace",
 		}
 
+# Dictionnaire donnant la direction du RER en fonction de la premiere lettre de son code mission.
 directions_data = {
 		"A":"N",
 		"C":"N",
@@ -47,6 +49,7 @@ directions_data = {
 		"U":"S",
 		}
 
+# Liste des gares du troncons nord du RER B.
 gares_data = [
 		"Aéroport Charles-de-Gaulle 2 TGV",
 		"Aéroport Charles-de-Gaulle 1"    ,
@@ -65,8 +68,13 @@ gares_data = [
 		"La Plaine - Stade de France"     ,
 		"Gare du Nord"                    ,
 		]
+
+# Dictionnaire donnant un code d'ordre de precedence en fonction du nom de la gare.
+# Le premier nombre du code indique la branche (0 : branche commune, 1 : branche mitry, 2 : branche CDG).
+# Le second nombre du code indique la position de la station dans la branche.
+# Ainsi, pour etre comparer, les stations doivent avoir le meme premier nombre, ou l'une des deux doit avoir un premier nombre nul.
 garesOrder_data = {
-        	"Aéroport Charles-de-Gaulle 2 TGV": (2,4),
+      "Aéroport Charles-de-Gaulle 2 TGV": (2,4),
 		"Aéroport Charles-de-Gaulle 1"    : (2,3),
 		"Parc des Expositions"            : (2,2),
 		"Villepinte"                      : (2,1),
@@ -83,6 +91,8 @@ garesOrder_data = {
 		"La Plaine - Stade de France"     : (0,1),
 		"Gare du Nord"                    : (0,0),
         }
+
+# Dictionnaire donnant la requete a faire sur le site transilien pour avoir la liste des missions desservant la gare.
 requests_data = {
 		"Aéroport Charles-de-Gaulle 2 TGV": "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=RYR&destination=PARIS+NORD&ligne=&nomGare=AEROPORT+CHARLES+DE+GAULLE+2+TGV+-+Roissy&x=28&y=10",
 		"Aéroport Charles-de-Gaulle 1"    : "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=RSY&destination=PARIS+NORD&ligne=&nomGare=AEROPORT+CHARLES+DE+GAULLE++1+-+Roissy&x=45&y=12",
@@ -110,22 +120,28 @@ patternHeureProbable = re.compile(b"heureProbable=\d\d:\d\d")
 patternHeureTheorique = re.compile(b"heureTheorique=\d\d:\d\d")
 
 
-# return 1 sur gare 1 avant gare 2, -1 si gare 2 avant gare 1, 0 si incomparable.
 def getGareOrder(gare1,gare2):
-        positionGare1 = garesOrder_data[gare1]
-        positionGare2 = garesOrder_data[gare2]
-        # meme sous branche
-        if positionGare1[0] == positionGare2[0]:
-                return 1 if positionGare1[1] >= positionGare2[1] else -1
-        else:
-                if positionGare1[0] != 0 and positionGare2[0] != 0:
-                        # Les branches sont incomparables
-                        return 0
-                else:
-                        return 1 if positionGare1[0] >= positionGare2[0] else -1
+	"""return 1 sur gare 1 avant gare 2, -1 si gare 2 avant gare 1, 0 si incomparable."""
+	positionGare1 = garesOrder_data[gare1]
+	positionGare2 = garesOrder_data[gare2]
+	# meme sous branche
+	if positionGare1[0] == positionGare2[0]:
+		return 1 if positionGare1[1] >= positionGare2[1] else -1
+	# sous branche differente.
+	else:
+		if positionGare1[0] != 0 and positionGare2[0] != 0:
+			# Les branches sont incomparables
+			return 0
+		else:
+			return 1 if positionGare1[0] >= positionGare2[0] else -1
 
 
-def getTrainFrom(request):
+def getTrainFromRequest(request):
+	"""
+		Effectue la requete sur le site transilien pour renvoier la liste des missions avec leur horaires theorique et probable.
+		nbTry (100) tentatives sont lance, si aucune ne fonctionne une liste vide est renvoye.
+	"""
+	# Requete.
 	success = False
 	nbTry = 100
 	for i in range(0,nbTry):
@@ -138,6 +154,8 @@ def getTrainFrom(request):
 	if not success:
 		print("Echec apres %d tentatives" % nbTry)
 		return []
+
+	# Exploitation du resultat de la requete/
 	content = page.read()
 	res = patternListTrain.findall(content)
 	trainRoissyVersParisNord = []
@@ -161,14 +179,79 @@ def getTrainFrom(request):
 			if name[0] in directions_data.keys() and directions_data[name[0]] == "S":
 				trainRoissyVersParisNord.append((name,probableHour,theoricalHour))
 	return trainRoissyVersParisNord
+
+
+def getTrainFromStation(gare):
+	"""Renvoie la liste des missions avec leur horaires theorique et probable de la gare."""
+	return getTrainFromRequest(requests_data[gare])
 	
 passageGare = {}
 for gare in gares_data:
-	passageGare[gare] = getTrainFrom(requests_data[gare])
+	passageGare[gare] = getTrainFromStation(gare)
 
 for gare in gares_data:
         print(gare)
         print(passageGare[gare])
+
+
+print("------------------------------------------------")
+
+
+def getWaitingQueue(passageInGare):
+	"""
+		Return un dictionnaire avec en cle le nom des mission de passageInGare avec 
+		en valeur leur position dans la file d'attente pour gare du Nord.
+		passageInGare est un dictionnaire associant pour chaque gare (en cle) les prochaines missions desservant cette gare.
+	"""
+	# Initialisation
+	waitingQueue = {}
+	waitingQueue[passageGare[gares_data[-1]][0][0]] = 0
+	pos = 0
+	currentPosition = pos
+	# Recuperation de l'ordre de passage par methode naive. 
+	for gare in reversed(gares_data):
+		for mission in passageGare[gare]:
+			if mission[0] in waitingQueue:
+				currentPosition = max(pos, waitingQueue[mission[0]])
+			else:
+				currentPosition = currentPosition + 1
+				waitingQueue[mission[0]] = currentPosition
+				pos = currentPosition
+
+	# Correction de la methode naive par des swaps jusqu'a obtention d'une solution coherente.
+	# Fonctionnement des swap : pour chaque gare si on trouve une mission A passant avant une mission B alors que
+	# leur position courante dans la queue indique le contraire alors on change leur position dans la queue pour
+	# obtenir un resultat plus coherent.
+	doContinue = True
+	nbIter = 0
+	while doContinue:
+		nbIter = nbIter + 1
+		doContinue = False
+		for gare in reversed(gares_data):
+			for i in range(0,len(passageGare[gare])-1):
+					mission1Name = passageGare[gare][i][0]
+					mission2Name = passageGare[gare][i+1][0]
+					pos1 = waitingQueue[mission1Name]
+					pos2 = waitingQueue[mission2Name]
+					if pos1 > pos2:
+						waitingQueue[mission1Name] = pos2
+						waitingQueue[mission2Name] = pos1
+						doContinue = True
+						break
+			if doContinue:
+				break
+		if nbIter > 1000:
+			break
+	return waitingQueue
+
+waitingQueue = getWaitingQueue(passageGare)
+
+for number in sorted(waitingQueue.values()):
+	for mission in waitingQueue.items():
+		if mission[1] == number:
+			print("Mission %s position %d" % (mission[0],number))
+	
+print("------------------------------------------------")
 
 missions = {}
 for gare in reversed(gares_data):
@@ -185,41 +268,6 @@ for gare in gares_data:
         if gare in nextTrainsToStation:
                 print(nextTrainsToStation[gare])
         print(gare)
-
-waitingQueue = {}
-pos = 0
-waitingQueue[passageGare[-1][0]] = 0
-print(waitingQueue)
-
 sys.exit(0)
 
 
-# Request (pour l'instant les requetes vont toujour vers le sud)
-request_CDG1 = "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=RSY&destination=PARIS+NORD&ligne=&nomGare=AEROPORT+CHARLES+DE+GAULLE++1+-+Roissy&x=41&y=11"
-request_Aulnay = "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=AB&destination=PARIS+NORD&ligne=&nomGare=AULNAY+SOUS+BOIS&x=44&y=11" 
-request_ParisNord = "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=GDS&destination=SAINT-MICHEL+NOTRE+DAME&ligne=&nomGare=PARIS+NORD+%28GARE+DU+NORD%29&x=39&y=14"
-#request_CDG1 = "http://www.transilien.com/gare/AEROPORT-CHARLES-DE-GAULLE-1-Roissy-8727146"
-#request_Aulnay = "http://www.transilien.com/gare/AULNAY-SOUS-BOIS-8727141" 
-#request_ParisNord = "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=GDS&destination=&ligne=RER+B&nomGare=PARIS+NORD+%28GARE+DU+NORD%29&x=35&y=6" 
-
-trainARoissy = getTrainFrom(request_CDG1)
-#trainAAulnay = getTrainFrom(request_Aulnay)
-trainAParis = getTrainFrom(request_ParisNord)
-
-print(trainARoissy)
-print(trainAParis)
-
-myTrain = trainARoissy[0][0]
-
-pos = 0
-sol = ""
-for train in trainAParis:
-	if train[0] == myTrain:
-		sol = "Il y a %d train avant le votre" % pos
-		break
-	pos = pos + 1
-
-if len(sol):
-	print(sol)
-else:
-	print("Pas de solution trouve!")
