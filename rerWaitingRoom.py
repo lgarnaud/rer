@@ -249,115 +249,153 @@ def getNewLine(gare):
 		alignValue = 1
 	return " " * 35 * alignValue + "| "
 
-
-snapshot=0
-passageGare = {}
-for gare in gares_data:
-	passageGare[gare] = getTrainFromStation(gare)
-
-while True:
-	completeSnapshot = datetime.datetime.now()
-	for currentGare in reversed(gares_data):
-		passageGare[currentGare] = getTrainFromStation(currentGare)
-
-		snapshot += 1
-		beginSnapshot = datetime.datetime.now() 
-
-		#for gare in gares_data:
-		#		  print(gare)
-		#		  print(passageGare[gare])
+def getAllTrainForAllStation():
+	"""
+		Renvoie un dictionnaire associant a chaque gare les futurs missions.
+	"""
+	return dict(zip(gares_data, map(getTrainFromStation,gares_data)))
 
 
-		#print("------------------------------------------------")
+def getNextStationForMissionStrict(passageGare):
+	"""
+		Renvoie un dictionnaire associant pour chaque mission la prochaine gare strictement desservie par la mission
+		Entree. Dictionnaire associant a chaque gare les prochaines missions desservant la gare.
+		La notion de "strict" signifie ici que la station est vraiment desservie (le train s'y arrete)
+	"""
+	nextStationForMission = {}
+	for gare in reversed(gares_data):
+		for mission in passageGare[gare]:
+			nextStationForMission[mission[0]] = gare
+	return nextStationForMission
 
+def getNextStationForMission(passageGare):
+	"""
+		Renvoie un dictionnaire associant pour chaque mission la prochaine gare desservie par la mission
+		Entree. Dictionnaire associant a chaque gare les prochaines missions desservant la gare.
+	"""
+	return getNextStationForMissionStrict(passageGare)
 
-		waitingQueue = getWaitingQueue(passageGare)
-		#for number in sorted(waitingQueue.values()):
-#		for mission in waitingQueue.items():
-#			if mission[1] == number:
-#				print("Mission %s position %d" % (mission[0],number))
-			
-#	print("------------------------------------------------")
-
-
-		missionByPosition = {v:k for k, v in waitingQueue.items()}
-		#print(missionByPosition)
-		missions = {}
-		for gare in reversed(gares_data):
-				  for mission in passageGare[gare]:
-							 missions[mission[0]] = gare
-
-		nextTrainsToStation = {}
-		for mission in missions.keys():
-				  if not missions[mission] in nextTrainsToStation:
-							 nextTrainsToStation[missions[mission]] = []
-				  nextTrainsToStation[missions[mission]].append(mission)
-
-		dataToPrint = {}
-		for gare in gares_data:        
-			dataToPrint[gare] = []
-			if gare in nextTrainsToStation:
-				for number in reversed(sorted(missionByPosition.keys())):
-					if missionByPosition[number] in nextTrainsToStation[gare]:
-						dataToPrint[gare].append(missionByPosition[number] + "  (" + str(number + 1) + ")")
-
-		#print(dataToPrint)
-
-		linesToPrint = []
-		linesToPrintLeft = []
-		linesToPrintRight = []
-		linesToPrintCenter = []
-		for gare in gares_data:
-			printer = linesToPrintCenter
-			if garesOrder_data[gare][0] == 1 :
-				printer = linesToPrintRight
-			elif garesOrder_data[gare][0] == 2:
-				printer = linesToPrintLeft
-			for dataChunkToPrint in dataToPrint[gare]:
-				thisLine = getNewLine(gare)
-				thisLine += dataChunkToPrint
-				printer.append(thisLine)
+def makeOutputString(dataToPrintByStation, highLightedStation=""):
+	outputString = ""
+	linesToPrint = []
+	linesToPrintLeft = []
+	linesToPrintRight = []
+	linesToPrintCenter = []
+	for gare in gares_data:
+		printer = linesToPrintCenter
+		if garesOrder_data[gare][0] == 1 :
+			printer = linesToPrintRight
+		elif garesOrder_data[gare][0] == 2:
+			printer = linesToPrintLeft
+		for dataChunkToPrint in dataToPrintByStation[gare]:
 			thisLine = getNewLine(gare)
-			if gare == currentGare:
-				thisLine += "* "
-			thisLine += gare
+			thisLine += dataChunkToPrint
 			printer.append(thisLine)
+		thisLine = getNewLine(gare)
+		thisLine += ("* " if gare == highLightedStation else "") + gare
+		printer.append(thisLine)
 
-		nbLinesToComplete = len(linesToPrintRight) - len(linesToPrintLeft)
-		linesToPrintToComplete = linesToPrintLeft
-		if nbLinesToComplete < 0:
-			nbLinesToComplete = -nbLinesToComplete
-			linesToPrintToComplete = linesToPrintRight
+	nbLinesToComplete = len(linesToPrintRight) - len(linesToPrintLeft)
+	linesToPrintToComplete = linesToPrintLeft
+	if nbLinesToComplete < 0:
+		nbLinesToComplete = -nbLinesToComplete
+		linesToPrintToComplete = linesToPrintRight
+		
+	for i in range(0,nbLinesToComplete):
+		linesToPrintToComplete.insert(0,"")
+
+
+	for i in range(0, max(len(linesToPrintRight), len(linesToPrintLeft))):
+		s = ""
+		if i < len(linesToPrintLeft):
+			s += linesToPrintLeft[i]
+		else:
+			s += getNewLine(gare)
+		if i < len(linesToPrintRight):
+			s += " " * (60 - len(s)) + linesToPrintRight[i]
+		else:
+			s += " " * (60 - len(s)) + getNewLine(gare)
+		linesToPrint.append(s)
+
+	linesToPrint.append("\ " + " " * 58 + "/") 
+	linesToPrint.append("  " + "-" * 27 + " " * 3 + "-" * 28  + " ") 
+	linesToPrint.append("  " + " " * 27 + "\ /"  + " " * 28  + " ") 
+	for line in linesToPrintCenter:
+		linesToPrint.append(" " * 30 + line)
+
+	for line in linesToPrint:
+		outputString += line + "\n"
+	
+	return outputString
+
+
+def computeResult(passageGare):
+	# Calcul de l'ordre de passage a Gare du Nord  pour chaque mission.
+	positionByMission = getWaitingQueue(passageGare)
+	# "Inversion" du dictionnaire suivant pour recuperer la mission en fonction de l'ordre de passage a Gare du Nord.
+	missionByPosition = dict(zip(positionByMission.values(),positionByMission.keys()))
+	# Recuperation de la position de la mission (on associe a chaque mission sa prochaine gare).
+	nextStationForMission = getNextStationForMission(passageGare)
+
+	# Recuperation des prochaines missions a passer par la gare G lorsque la gare G est la prochaine gare desservie par la mission pour chaque gare G.
+	#   Initialisation du dictionnaire.
+	nextMissionsToStation = dict((gare, []) for gare in gares_data)
+	#   Calcul
+	for mission in nextStationForMission.keys():
+		nextMissionsToStation[nextStationForMission[mission]].append(mission)
+
+	dataToPrintByStation = dict((gare,[]) for gare in gares_data)
+	for gare in gares_data:        
+		if gare in nextMissionsToStation:
+			for number in reversed(sorted(missionByPosition.keys())):
+				if missionByPosition[number] in nextMissionsToStation[gare]:
+					dataToPrintByStation[gare].append(missionByPosition[number] + "  (" + str(number + 1) + ")")
+	return dataToPrintByStation
+
+
+def stateLessMode():
+	# Recuperation pour chaque gare des prochains train desservant la gare.
+	passageGare = getAllTrainForAllStation()
+
+	dataToPrintByStation = computeResult(passageGare)
+
+	# Affichage
+	os.system("clear")
+	print(makeOutputString(dataToPrintByStation))
+	print(passageGare[gares_data[-1]])
+					
+
+
+def stateFullMode():
+	# Recuperation initial pour chaque gare des prochains train desservant la gare.
+	passageGare = getAllTrainForAllStation()
+
+	snapshot=0
+	while True:
+		# Gare a mettre a jour (mise a jour succesive)
+		for currentStation in reversed(gares_data):
+			snapshot += 1
+			beginSnapshot = datetime.datetime.now() 
+
+			# Mise a jour des prochains passages a cette gare
+			passageGare[currentStation] = getTrainFromStation(currentStation)
 			
-		for i in range(0,nbLinesToComplete):
-			linesToPrintToComplete.insert(0,"")
+			dataToPrintByStation = computeResult(passageGare)
+
+			# Affichage
+			os.system("clear")
+			print("%4d -- %s -- %s" % (snapshot, beginSnapshot.strftime("%Y/%m/%d %H:%M:%S"),currentStation))
+			print(makeOutputString(dataToPrintByStation, currentStation))
+			print(passageGare[gares_data[-1]])
+
+	return 0
 
 
-		for i in range(0, max(len(linesToPrintRight), len(linesToPrintLeft))):
-			s = ""
-			if i < len(linesToPrintLeft):
-				s += linesToPrintLeft[i]
-			else:
-				s += getNewLine(gare)
-			if i < len(linesToPrintRight):
-				s += " " * (60 - len(s)) + linesToPrintRight[i]
-			else:
-				s += " " * (60 - len(s)) + getNewLine(gare)
-			linesToPrint.append(s)
 
-		linesToPrint.append("\ " + " " * 58 + "/") 
-		linesToPrint.append("  " + "-" * 27 + " " * 3 + "-" * 28  + " ") 
-		linesToPrint.append("  " + " " * 27 + "\ /"  + " " * 28  + " ") 
-		for line in linesToPrintCenter:
-			linesToPrint.append(" " * 30 + line)
 
-		endSnapshot = datetime.datetime.now()
-		os.system("clear")
-		print("" + str(snapshot) + " " + str(completeSnapshot) + " " + str(beginSnapshot) + " " + str(endSnapshot) + " " + currentGare)
-		for line in linesToPrint:
-			print(line)
-		print(passageGare[gares_data[-1]])
-
-sys.exit(0)
+if __name__ == "__main__":
+	stateFullMode()
+	stateLessMode()
+	sys.exit(0)
 
 
