@@ -269,12 +269,45 @@ def getNextStationForMissionStrict(passageGare):
 			nextStationForMission[mission[0]] = gare
 	return nextStationForMission
 
-def getNextStationForMission(passageGare):
+def getNextStationForMissionHeuristic(passageGare, positionByMission):
+	"""
+		Renvoie un dictionnaire associant pour chaque mission la prochaine gare desservie par la mission (methode heuristique)
+		Entree. Dictionnaire associant a chaque gare les prochaines missions desservant la gare.
+		La notion de "heuristique" signifie ici que la station n'est pas necessairement desservie mais on "imagine" que c'est la prochaine desservie.
+	"""
+	nextStationForMission = getNextStationForMissionStrict(passageGare)
+
+	changeDone = True
+	while(changeDone):
+		changeDone = False
+		for missionA in positionByMission.keys():
+			for missionB in positionByMission.keys():
+				if missionA == missionB:
+					continue
+				nextStationA = nextStationForMission[missionA]
+				nextStationB = nextStationForMission[missionB]
+				if nextStationA == nextStationB:
+					continue
+				if garesOrder_data[nextStationA][0] != garesOrder_data[nextStationB][0]:
+					continue
+				# Temporel : A est avant B (son numero de mission est avant)
+				# Spatial : la prochaine station desservie par A est avant la prochaine station desservie par B
+				if positionByMission[missionA] < positionByMission[missionB] and getGareOrder(nextStationA,nextStationB) == 1:
+					nextStationForMission[missionB] = nextStationA
+					changeDone = True
+					break
+			if changeDone:
+				break
+
+	return nextStationForMission
+
+def getNextStationForMission(passageGare, positionByMission=[]):
 	"""
 		Renvoie un dictionnaire associant pour chaque mission la prochaine gare desservie par la mission
 		Entree. Dictionnaire associant a chaque gare les prochaines missions desservant la gare.
 	"""
-	return getNextStationForMissionStrict(passageGare)
+	#return getNextStationForMissionStrict(passageGare)
+	return getNextStationForMissionHeuristic(passageGare,positionByMission)
 
 def makeOutputString(dataToPrintByStation, highLightedStation=""):
 	outputString = ""
@@ -350,7 +383,7 @@ def computeResult(passageGare):
 	# "Inversion" du dictionnaire suivant pour recuperer la mission en fonction de l'ordre de passage a Gare du Nord.
 	missionByPosition = dict(zip(positionByMission.values(),positionByMission.keys()))
 	# Recuperation de la position de la mission (on associe a chaque mission sa prochaine gare).
-	nextStationForMission = getNextStationForMission(passageGare)
+	nextStationForMission = getNextStationForMission(passageGare, positionByMission)
 
 	# Recuperation des prochaines missions a passer par la gare G lorsque la gare G est la prochaine gare desservie par la mission pour chaque gare G.
 	#   Initialisation du dictionnaire.
