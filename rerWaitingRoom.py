@@ -9,6 +9,7 @@ import re
 import sys
 import os
 import datetime
+import time
 
 # Dictionnaire donnant la gare de destination du RER en fonction de la premiere lettre de son code mission.
 missions_data = {
@@ -328,6 +329,20 @@ def makeOutputString(dataToPrintByStation, highLightedStation=""):
 	
 	return outputString
 
+def getNextStationsAndDelay(passageInGare):
+	# Pour chaque mission association de la liste des gare desservie avec l'horaire.
+	stationsByMission = {}
+	for gare in reversed(gares_data):
+		for mission in passageInGare[gare]:
+			key = mission[0]
+			if not key in stationsByMission:
+				stationsByMission[key] = []
+			FMT = '%H:%M'
+			forecastTime = datetime.datetime.strptime(mission[1], FMT)
+			theoricTime = datetime.datetime.strptime(mission[2], FMT)
+			delay = forecastTime - theoricTime
+			stationsByMission[key].append((gare,forecastTime,theoricTime,delay))
+	return stationsByMission
 
 def computeResult(passageGare):
 	# Calcul de l'ordre de passage a Gare du Nord  pour chaque mission.
@@ -344,12 +359,16 @@ def computeResult(passageGare):
 	for mission in nextStationForMission.keys():
 		nextMissionsToStation[nextStationForMission[mission]].append(mission)
 
+	# Pour chaque mission association de la liste des gare desservie avec l'horaire.
+	stationsByMission = getNextStationsAndDelay(passageGare)
+
 	dataToPrintByStation = dict((gare,[]) for gare in gares_data)
 	for gare in gares_data:        
 		if gare in nextMissionsToStation:
 			for number in reversed(sorted(missionByPosition.keys())):
 				if missionByPosition[number] in nextMissionsToStation[gare]:
-					dataToPrintByStation[gare].append(missionByPosition[number] + "  (" + str(number + 1) + ")")
+					mission = missionByPosition[number]
+					dataToPrintByStation[gare].append(missionByPosition[number] + "  (" + str(number + 1) + ") " + stationsByMission[mission][0][0] + " " + stationsByMission[mission][0][1].strftime("%H:%M") + " " + str(stationsByMission[mission][0][3])[:-3]  )
 	return dataToPrintByStation
 
 
