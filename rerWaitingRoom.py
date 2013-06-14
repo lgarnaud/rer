@@ -14,18 +14,18 @@ import time
 # Dictionnaire donnant la gare de destination du RER en fonction de la premiere lettre de son code mission.
 missions_data = {
 		"A":"Gare du Nord",
-		"C":"Cité universitaire (exceptionnel)",
-		"E":"Aéroport Charles-de-Gaulle 2 TGV",
+		"C":"Cite universitaire (exceptionnel)",
+		"E":"Aeroport Charles-de-Gaulle 2 TGV",
 		"G":"Aulnay-sous-Bois",
 		"H":"Bourg-la-Reine (exceptionnel)",
 		"I":"Mitry - Claye",
 		"J":"Denfert-Rochereau",
 		"K":"Massy - Palaiseau",
 		"L":"Orsay - Ville",
-		"M":"Châtelet - Les Halles (exceptionnel)",
+		"M":"Chatelet - Les Halles (exceptionnel)",
 		"N":"La Croix de Berny (exceptionnel)",
-		"O":"Aéroport Charles-de-Gaulle 1 (exceptionnel)",
-		"P":"Saint-Rémy-lès-Chevreuse",
+		"O":"Aeroport Charles-de-Gaulle 1 (exceptionnel)",
+		"P":"Saint-Remy-les-Chevreuse",
 		"Q":"La Plaine - Stade de France",
 		"S":"Robinson",
 		"U":"Laplace",
@@ -53,8 +53,8 @@ directions_data = {
 
 # Liste des gares du troncons nord du RER B.
 gares_data = [
-		"Aéroport Charles-de-Gaulle 2 TGV",
-		"Aéroport Charles-de-Gaulle 1"    ,
+		"Aeroport Charles-de-Gaulle 2 TGV",
+		"Aeroport Charles-de-Gaulle 1"    ,
 		"Parc des Expositions"            ,
 		"Villepinte"                      ,
 		"Sevran - Beaudottes"             ,
@@ -76,8 +76,8 @@ gares_data = [
 # Le second nombre du code indique la position de la station dans la branche.
 # Ainsi, pour etre comparer, les stations doivent avoir le meme premier nombre, ou l'une des deux doit avoir un premier nombre nul.
 garesOrder_data = {
-      "Aéroport Charles-de-Gaulle 2 TGV": (2,11),
-		"Aéroport Charles-de-Gaulle 1"    : (2,10),
+      "Aeroport Charles-de-Gaulle 2 TGV": (2,11),
+		"Aeroport Charles-de-Gaulle 1"    : (2,10),
 		"Parc des Expositions"            : (2,9),
 		"Villepinte"                      : (2,8),
 		"Sevran - Beaudottes"             : (2,7),
@@ -96,8 +96,8 @@ garesOrder_data = {
 
 # Dictionnaire donnant la requete a faire sur le site transilien pour avoir la liste des missions desservant la gare.
 requests_data = {
-		"Aéroport Charles-de-Gaulle 2 TGV": "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=RYR&destination=PARIS+NORD&ligne=&nomGare=AEROPORT+CHARLES+DE+GAULLE+2+TGV+-+Roissy&x=28&y=10",
-		"Aéroport Charles-de-Gaulle 1"    : "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=RSY&destination=PARIS+NORD&ligne=&nomGare=AEROPORT+CHARLES+DE+GAULLE++1+-+Roissy&x=45&y=12",
+		"Aeroport Charles-de-Gaulle 2 TGV": "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=RYR&destination=PARIS+NORD&ligne=&nomGare=AEROPORT+CHARLES+DE+GAULLE+2+TGV+-+Roissy&x=28&y=10",
+		"Aeroport Charles-de-Gaulle 1"    : "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=RSY&destination=PARIS+NORD&ligne=&nomGare=AEROPORT+CHARLES+DE+GAULLE++1+-+Roissy&x=45&y=12",
 		"Parc des Expositions"            : "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=PEX&destination=PARIS+NORD&ligne=&nomGare=PARC+DES+EXPOSITIONS&x=18&y=16",
 		"Villepinte"                      : "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=VPN&destination=PARIS+NORD&ligne=&nomGare=VILLEPINTE&x=26&y=13",
 		"Sevran - Beaudottes"             : "http://www.transilien.com/gare/pagegare/filterListeTrains?codeTR3A=BDE&destination=PARIS+NORD&ligne=&nomGare=SEVRAN+BEAUDOTTES&x=44&y=10",
@@ -412,10 +412,7 @@ def stateLessMode():
 	dataToPrintByStation = computeResult(passageGare)
 
 	# Affichage
-	os.system("clear")
 	print(makeOutputString(dataToPrintByStation))
-	print(passageGare[gares_data[-1]])
-					
 
 
 def stateFullMode():
@@ -438,7 +435,7 @@ def stateFullMode():
 			os.system("clear")
 			print("%4d -- %s -- %s" % (snapshot, beginSnapshot.strftime("%Y/%m/%d %H:%M:%S"),currentStation))
 			print(makeOutputString(dataToPrintByStation, currentStation))
-			print(passageGare[gares_data[-1]])
+			#print(passageGare[gares_data[-1]])
 
 	return 0
 
