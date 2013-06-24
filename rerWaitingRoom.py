@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # TODO
 #  -- Parrallelise la recherche sur internet ;
-#  -- rendu graphique plan de ligne format texte ; 
-#  -- algorithme de numerotation de l'ordre de passage de chaque train a Paris Nord
 
 import urllib.request
 import re
@@ -10,6 +8,7 @@ import sys
 import os
 import datetime
 import time
+import optparse
 
 # Dictionnaire donnant la gare de destination du RER en fonction de la premiere lettre de son code mission.
 missions_data = {
@@ -278,7 +277,9 @@ def getNextStationForMissionHeuristic(passageGare, positionByMission):
 	nextStationForMission = getNextStationForMissionStrict(passageGare)
 
 	changeDone = True
-	while(changeDone):
+	nbIter = 0
+	while changeDone and nbIter < 1000:
+		nbIter += 1
 		changeDone = False
 		for missionA in positionByMission.keys():
 			for missionB in positionByMission.keys():
@@ -443,8 +444,13 @@ def stateFullMode():
 
 
 if __name__ == "__main__":
-	stateFullMode()
-	stateLessMode()
+	parser = optparse.OptionParser()
+	parser.add_option("--statefull", help='Mode state full (se met a jour en continue)', dest='statefull',default=False, action='store_true')
+	(opts,args) = parser.parse_args()
+	if opts.statefull:
+		stateFullMode()
+	else:
+		stateLessMode()
 	sys.exit(0)
 
 

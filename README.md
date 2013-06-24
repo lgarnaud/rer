@@ -21,7 +21,6 @@ The script update this display by doing request station after station (the last 
 
 # Next step
 The next step is to : 
-- provide two modes (statefull and stateless) ;
 - improve the position of the train using the time to destination ;
 - complete the B-line and add other line ;
 - provide a more complete (but still light) webpage ; 
