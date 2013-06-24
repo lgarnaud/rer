@@ -70,6 +70,26 @@ gares_data = [
 		"Gare du Nord"                    ,
 		]
 
+# Code trigramme pour chaque gare
+gares_code = {
+		"Aeroport Charles-de-Gaulle 2 TGV":"CG2",
+		"Aeroport Charles-de-Gaulle 1"    :"CG1",
+		"Parc des Expositions"            :"PDE",
+		"Villepinte"                      :"VLP",
+		"Sevran - Beaudottes"             :"SVB",
+		"Mitry - Claye"                   :"MYC",
+		"Villeparisis - Mitry-le-Neuf"    :"VMN",
+		"Vert-Galant"                     :"VGL",
+		"Sevran - Livry"                  :"SLI",
+		"Aulnay-sous-Bois"                :"ASB",
+		"Le Blanc-Mesnil"                 :"BMN",
+		"Drancy"                          :"DRY",
+		"Le Bourget"                      :"BRG",
+		"La Courneuve - Aubervilliers"    :"CAV",
+		"La Plaine - Stade de France"     :"SDF",
+		"Gare du Nord"                    :"GDN"
+		}
+
 # Dictionnaire donnant un code d'ordre de precedence en fonction du nom de la gare.
 # Le premier nombre du code indique la branche (0 : branche commune, 1 : branche mitry, 2 : branche CDG).
 # Le second nombre du code indique la position de la station dans la branche.
@@ -405,8 +425,19 @@ def computeResult(passageGare):
 					dataToPrintByStation[gare].append(missionByPosition[number] + "  (" + str(number + 1) + ") " + stationsByMission[mission][0][0] + " " + stationsByMission[mission][0][1].strftime("%H:%M") + " " + str(stationsByMission[mission][0][3])[:-3]  )
 	return dataToPrintByStation
 
+def printJustStation(code,passageGare={}):
+	stationByCode = dict(zip(gares_code.values(),gares_code.keys()))
+	nextMissions=[]
+	if len(passageGare):
+		nextMissions = passageGare[stationByCode[code]]
+	else:
+		nextMissions = getTrainFromStation(stationByCode[code])
 
-def stateLessMode():
+	print(stationByCode[code])
+	for mission in nextMissions:
+		print("%s  %s  (%s)" % (mission[0],mission[1],mission[2]))
+
+def stateLessMode(printAllStation = False):
 	# Recuperation pour chaque gare des prochains train desservant la gare.
 	passageGare = getAllTrainForAllStation()
 
@@ -415,8 +446,28 @@ def stateLessMode():
 	# Affichage
 	print(makeOutputString(dataToPrintByStation))
 
+	if printAllStation:
+		for pos in range(2,-1,-1):
+			resToPrint=""
+			for station in gares_data:
+				if garesOrder_data[station][0] != pos:
+					continue
+				resToPrint += "%-35s" % (station)
+			resToPrint += "\n"
+			for numMission in range(0,6):
+				for station in gares_data:
+					if garesOrder_data[station][0] != pos:
+						continue
+					if len(passageGare[station]) <= numMission:
+						resToPrint += " " * 35
+					else:
+						mission = passageGare[station][numMission]
+						resToPrint += ("%-35s" % ("%s  %s  (%s)" % (mission[0],mission[1],mission[2])))
+				resToPrint += "\n"
+			print(resToPrint)
 
-def stateFullMode():
+
+def stateFullMode(printAllStation = False):
 	# Recuperation initial pour chaque gare des prochains train desservant la gare.
 	passageGare = getAllTrainForAllStation()
 
@@ -441,16 +492,19 @@ def stateFullMode():
 	return 0
 
 
-
-
 if __name__ == "__main__":
 	parser = optparse.OptionParser()
 	parser.add_option("--statefull", help='Mode state full (se met a jour en continue)', dest='statefull',default=False, action='store_true')
+	parser.add_option("--allstations", help='Affichage des horaires de passage pour chaque station', dest='allstations',default=False, action='store_true')
+	parser.add_option("--station", help='Prochain passage pour une station', dest='stationCode')
 	(opts,args) = parser.parse_args()
+	if(opts.stationCode):
+		printJustStation(opts.stationCode)
+		sys.exit(0)
 	if opts.statefull:
-		stateFullMode()
+		stateFullMode(opts.allstations)
 	else:
-		stateLessMode()
+		stateLessMode(opts.allstations)
 	sys.exit(0)
 
 
